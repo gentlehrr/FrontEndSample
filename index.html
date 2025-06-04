@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Document Query</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'SF Mono', 'Consolas', 'Arial', sans-serif;
+        }
+
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(
+                -45deg,
+                #531c8ee7,
+                #494278,
+                #000000fc,
+                #000000
+            );
+            background-size: 400% 400%;
+            animation: gradientAnimation 40s linear infinite; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: rgb(0, 0, 0);
+            position: relative;
+            overflow: hidden;
+        }
+
+        div {
+            background: rgb(0, 0, 0);
+            backdrop-filter: blur(200px);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            margin: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        #address_div, #query_div, #result_div {
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #1a1a3a;
+        }
+
+        input[type="button"] {
+            background: linear-gradient(45deg, #1a1a3a, #0f1c3f);
+            border: none;
+            padding: 12px 24px;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: transform 10.0s, box-shadow 10.0s;
+            margin-top: 10px;
+        }
+
+        input[type="button"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(45deg, #0f1c3f, #1a1a3a);
+        }
+
+        #result_div {
+            background: linear-gradient(45deg, #1a1a3a, #ff0000);
+            animation: fadeIn 10.0s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        span {
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        #query_result {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            white-space: pre-line;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div id="address_div">
+        <input type="hidden" id="file_name" value="C:/Users/TC/Downloads/CS_660_CS_760_Syllabus.pdf">
+        <input type="button" value="Start Querying" onclick="hideFileDiv()">
+    </div>
+
+    <div id="query_div" style="display: none;">
+        Enter your query regarding said document..
+        (This is just a front end sample. The other files are deliberately excluded )
+        <br>
+        <input type="text" id="user_query" placeholder="What would you like to know?">
+        <br>
+        <input type="button" value="Submit Query" onclick="processQuery()">
+    </div>
+
+    <div id="result_div" style="display: none;">
+        <div id="query_result"></div>
+        <br>
+        <input type="button" value="New Query" onclick="resetQuery()">
+    </div>
+
+    <script>
+        function hideFileDiv() {
+            document.getElementById('address_div').style.display = 'none';
+            document.getElementById('query_div').style.display = 'block';
+        }
+    
+        function processQuery() {
+            const fileName = document.getElementById('file_name').value.trim();
+            const userQuery = document.getElementById('user_query').value.trim();
+    
+            if (userQuery) {
+                // Show loading state
+                document.getElementById('query_result').innerHTML = 'Processing...';
+                document.getElementById('query_div').style.display = 'none';
+                document.getElementById('result_div').style.display = 'block';
+    
+                fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        fileName: fileName,
+                        query: userQuery
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('query_result');
+                    resultDiv.innerHTML = '';
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Split the result into lines for typewriter effect
+                    const lines = data.result.split('\n');
+                    let lineIndex = 0;
+                    
+                    function typeLine() {
+                        if (lineIndex < lines.length) {
+                            const line = lines[lineIndex];
+                            resultDiv.innerHTML += line + '\n';
+                            lineIndex++;
+                            setTimeout(typeLine, 50); // Adjust timing as needed
+                        }
+                    }
+                    
+                    typeLine();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('query_result').innerHTML = `Error: ${error.message}`;
+                });
+            } else {
+                alert('Please enter a query');
+            }
+        }
+    
+        function resetQuery() {
+            document.getElementById('user_query').value = '';
+            document.getElementById('result_div').style.display = 'none';
+            document.getElementById('query_div').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
